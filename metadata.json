@@ -1,0 +1,5 @@
+{
+  "name": "React Local Blog",
+  "description": "A full-featured blog application with admin management, search, and image handling. Uses LocalStorage for data persistence and Gemini AI for content assistance, simulating a full-stack experience in the browser.",
+  "requestFramePermissions": []
+}
