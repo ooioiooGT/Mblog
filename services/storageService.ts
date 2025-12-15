@@ -1,9 +1,17 @@
 import { BlogPost, CreatePostDTO } from '../types';
 
-const STORAGE_KEY = 'react_blog_posts_v1';
+// Robust API URL Detection:
+// 1. Get the current protocol (http/https), hostname (localhost/ip), and port.
+// 2. If the current port is '3001', we are serving the app from the backend itself (Production/Ubuntu), so use relative path '/api'.
+// 3. Otherwise (Development), assume the backend is on port 3001 of the SAME hostname.
+// This allows access via localhost, 127.0.0.1, OR network IP (192.168.x.x) without code changes.
+const protocol = window.location.protocol;
+const hostname = window.location.hostname;
+const port = window.location.port;
 
-// Helper to simulate network delay
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const API_URL = port === '3001' 
+  ? '/api' 
+  : `${protocol}//${hostname}:3001/api`;
 
 // Helper to convert File to Base64
 const fileToBase64 = (file: File): Promise<string> => {
@@ -15,75 +23,51 @@ const fileToBase64 = (file: File): Promise<string> => {
   });
 };
 
-// Seed data if empty
-const seedData: BlogPost[] = [
-  {
-    id: '1',
-    title: 'Welcome to the Future of Blogging',
-    content: 'This is a simulated full-stack environment running entirely in your browser. We are using LocalStorage to mimic a SQLite database and Base64 encoding to handle image "uploads" without a physical server. React 18 and Tailwind CSS power the frontend.',
-    excerpt: 'This is a simulated full-stack environment running entirely in your browser...',
-    createdAt: Date.now(),
-    author: 'Admin',
-    imageUrl: 'https://picsum.photos/800/400'
-  },
-  {
-    id: '2',
-    title: 'Understanding React Hooks',
-    content: 'Hooks are a new addition in React 16.8. They let you use state and other React features without writing a class. The most common hooks are useState and useEffect, which manage local state and side effects respectively.',
-    excerpt: 'Hooks are a new addition in React 16.8. They let you use state...',
-    createdAt: Date.now() - 86400000,
-    author: 'DevTeam',
-    imageUrl: 'https://picsum.photos/800/401'
-  }
-];
-
 export const storageService = {
   async getPosts(searchQuery: string = ''): Promise<BlogPost[]> {
-    await delay(300); // Simulate API latency
-    const stored = localStorage.getItem(STORAGE_KEY);
-    let posts: BlogPost[] = stored ? JSON.parse(stored) : [];
-    
-    if (posts.length === 0 && !stored) {
-      posts = seedData;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
+    try {
+      const url = searchQuery 
+        ? `${API_URL}/posts?q=${encodeURIComponent(searchQuery)}` 
+        : `${API_URL}/posts`;
+      
+      const response = await fetch(url);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Server Error: ${response.status} - ${errorText}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error("Failed to fetch posts from API", error);
+      return [];
     }
-
-    if (!searchQuery) return posts.sort((a, b) => b.createdAt - a.createdAt);
-
-    const lowerQuery = searchQuery.toLowerCase();
-    return posts
-      .filter(p => 
-        p.title.toLowerCase().includes(lowerQuery) || 
-        p.content.toLowerCase().includes(lowerQuery)
-      )
-      .sort((a, b) => b.createdAt - a.createdAt);
   },
 
   async getPostById(id: string): Promise<BlogPost | undefined> {
-    await delay(100);
-    const stored = localStorage.getItem(STORAGE_KEY);
-    const posts: BlogPost[] = stored ? JSON.parse(stored) : [];
-    return posts.find(p => p.id === id);
+    try {
+      const response = await fetch(`${API_URL}/posts/${id}`);
+      if (!response.ok) return undefined;
+      const data = await response.json();
+      return data || undefined;
+    } catch (error) {
+      console.error(`Failed to fetch post ${id}`, error);
+      return undefined;
+    }
   },
 
   async createPost(dto: CreatePostDTO): Promise<BlogPost> {
-    await delay(600); // Simulate upload/processing time
-    
     let imageUrl = '';
+    
     if (dto.imageFile) {
       try {
         imageUrl = await fileToBase64(dto.imageFile);
       } catch (e) {
         console.error("Failed to process image", e);
-        // Fallback or just empty
       }
     } else {
-        // Random placeholder if no image provided
         imageUrl = `https://picsum.photos/800/400?random=${Math.random()}`;
     }
 
-    const newPost: BlogPost = {
-      id: crypto.randomUUID(),
+    const postPayload = {
       title: dto.title,
       content: dto.content,
       excerpt: dto.content.substring(0, 150) + '...',
@@ -92,20 +76,29 @@ export const storageService = {
       author: 'Admin'
     };
 
-    const stored = localStorage.getItem(STORAGE_KEY);
-    const posts: BlogPost[] = stored ? JSON.parse(stored) : [];
-    const updatedPosts = [newPost, ...posts];
-    
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedPosts));
-    return newPost;
+    const response = await fetch(`${API_URL}/posts`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(postPayload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to save post: ${response.status} - ${errorText}`);
+    }
+
+    return await response.json();
   },
 
   async deletePost(id: string): Promise<void> {
-    await delay(300);
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return;
-    const posts: BlogPost[] = JSON.parse(stored);
-    const updated = posts.filter(p => p.id !== id);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    try {
+      await fetch(`${API_URL}/posts/${id}`, {
+        method: 'DELETE',
+      });
+    } catch (error) {
+      console.error("Failed to delete post", error);
+    }
   }
 };

@@ -50,10 +50,6 @@ export const Login: React.FC = () => {
           <Button type="submit" className="w-full">
             Login
           </Button>
-
-          <div className="text-center text-xs text-gray-400">
-            Hint: The password is <strong>admin</strong>
-          </div>
         </form>
       </div>
     </div>

@@ -21,7 +21,7 @@ export const Navbar: React.FC = () => {
         <div className="flex justify-between h-16 items-center">
           <Link to="/" className="flex items-center gap-2 text-blue-600 hover:text-blue-700 transition-colors">
             <BookOpen className="h-8 w-8" />
-            <span className="font-bold text-xl tracking-tight text-gray-900">DevBlog</span>
+            <span className="font-bold text-xl tracking-tight text-gray-900">Gilber Blog</span>
           </Link>
 
           <div className="flex items-center gap-4">
