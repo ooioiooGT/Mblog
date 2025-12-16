@@ -1,8 +1,8 @@
-const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
-const cors = require('cors');
-const path = require('path');
-const { randomUUID } = require('crypto');
+const express = import('express');
+const sqlite3 = import ('sqlite3').verbose();
+const cors = import('cors');
+const path = import('path');
+const { randomUUID } = import('crypto');
 
 const app = express();
 const PORT = 3001;
