@@ -13,9 +13,3 @@ export interface CreatePostDTO {
   content: string;
   imageFile?: File;
 }
-
-export enum ViewState {
-  HOME = 'HOME',
-  POST = 'POST',
-  ADMIN = 'ADMIN'
-}

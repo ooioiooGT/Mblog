@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, Wand2, Save, X } from 'lucide-react';
+import { Upload, Save, X } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { Input, Textarea } from './Input';
 import { Button } from './Button';
@@ -11,8 +11,6 @@ export const AdminPanel: React.FC = () => {
   const [content, setContent] = useState('');
   const [imageFile, setImageFile] = useState<File | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [prompt, setPrompt] = useState('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
