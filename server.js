@@ -131,7 +131,8 @@ app.post('/api/posts', (req, res) => {
 // Delete post
 app.delete('/api/posts/:id', (req, res) => {
   const sqlQuery = "DELETE FROM posts WHERE id = ?";
-  db.run(sqlQuery, req.params.id, function(err) {
+  // Wrap params in array for safety
+  db.run(sqlQuery, [req.params.id], function(err) {
     if (err) {
       res.status(400).json({ error: err.message });
       return;
@@ -142,7 +143,8 @@ app.delete('/api/posts/:id', (req, res) => {
 
 // --- Catch-All Route (Must be last) ---
 // Handles React Client-Side Routing
-app.get('*', (req, res) => {
+// Using Regex /.*/ because Express 5+ does not support '*' as a wildcard string
+app.get(/.*/, (req, res) => {
   if (req.path.startsWith('/api')) {
     return res.status(404).json({ error: 'Not found' });
   }
