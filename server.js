@@ -1,28 +1,24 @@
-import express from 'express';
-import sqlite3 from 'sqlite3';
-import cors from 'cors';
-import path from 'path';
-import fs from 'fs';
-import { randomUUID } from 'crypto';
-import { fileURLToPath } from 'url';
-
-// 1. Setup __dirname for ES Modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const express = require('express');
+const sqlite3 = require('sqlite3').verbose();
+const cors = require('cors');
+const path = require('path');
+const { randomUUID } = require('crypto');
 
 const app = express();
 const PORT = 3001;
 
-// 2. Middleware
+// Middleware
 app.use(cors());
+// Increase payload limit for Base64 images
 app.use(express.json({ limit: '50mb' }));
+
+// 1. Serve Static Files (Frontend)
+// This expects your React build to be in the 'dist' folder
 app.use(express.static(path.join(__dirname, 'dist')));
 
-// 3. Database Setup (Using standard sqlite3)
-const verboseSqlite = sqlite3.verbose();
+// Database Setup
 const dbPath = path.resolve(__dirname, 'blog.db');
-
-const db = new verboseSqlite.Database(dbPath, (err) => {
+const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error('Error opening database', err);
   } else {
@@ -31,10 +27,8 @@ const db = new verboseSqlite.Database(dbPath, (err) => {
   }
 });
 
-// 4. Initialize Table and Seed Data
 function initDb() {
   db.serialize(() => {
-    // Create Table
     db.run(`CREATE TABLE IF NOT EXISTS posts (
       id TEXT PRIMARY KEY,
       title TEXT,
@@ -45,30 +39,28 @@ function initDb() {
       author TEXT
     )`);
 
-    // Check if empty, then seed
+    // Seed data if empty
     db.get("SELECT count(*) as count FROM posts", (err, row) => {
       if (err) return console.error(err);
-      
       if (row.count === 0) {
         console.log("Seeding initial data...");
-        const seed1 = [
-          '1', 
-          'Welcome to your new Blog', 
-          'This is your first post running on your Ubuntu server! You can delete this in the admin panel.', 
-          'This is your first post...', 
-          '', 
-          Date.now(), 
-          'Admin'
+        const seedData = [
+          {
+            id: '1',
+            title: 'Welcome to the Future of Blogging',
+            content: 'This is a simulated full-stack environment. We are using SQLite for the database and Node.js for the backend. React 19 powers the frontend.',
+            excerpt: 'This is a simulated full-stack environment...',
+            createdAt: Date.now(),
+            author: 'Admin',
+            imageUrl: 'https://picsum.photos/800/400'
+          }
         ];
         
-        db.run(
-          "INSERT INTO posts (id, title, content, excerpt, imageUrl, createdAt, author) VALUES (?, ?, ?, ?, ?, ?, ?)",
-          seed1,
-          (err) => {
-            if (err) console.error("Seed error:", err);
-            else console.log("Seed data inserted.");
-          }
-        );
+        const stmt = db.prepare("INSERT INTO posts VALUES (?, ?, ?, ?, ?, ?, ?)");
+        seedData.forEach(post => {
+          stmt.run(post.id, post.title, post.content, post.excerpt, post.imageUrl, post.createdAt, post.author);
+        });
+        stmt.finalize();
       }
     });
   });
@@ -88,7 +80,11 @@ app.get('/api/posts', (req, res) => {
   }
 
   db.all(sql, params, (err, rows) => {
-    if (err) return res.status(400).json({ error: err.message });
+    if (err) {
+      console.error(err);
+      res.status(400).json({ error: err.message });
+      return;
+    }
     res.json(rows);
   });
 });
@@ -97,7 +93,10 @@ app.get('/api/posts', (req, res) => {
 app.get('/api/posts/:id', (req, res) => {
   const sql = "SELECT * FROM posts WHERE id = ?";
   db.get(sql, [req.params.id], (err, row) => {
-    if (err) return res.status(400).json({ error: err.message });
+    if (err) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
     res.json(row || null);
   });
 });
@@ -111,27 +110,34 @@ app.post('/api/posts', (req, res) => {
   const params = [id, title, content, excerpt, imageUrl, createdAt, author];
 
   db.run(sql, params, function(err) {
-    if (err) return res.status(400).json({ error: err.message });
-    res.json({ id, title, content, excerpt, imageUrl, createdAt, author });
+    if (err) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
+    res.json({
+      id, title, content, excerpt, imageUrl, createdAt, author
+    });
   });
 });
 
 // Delete post
 app.delete('/api/posts/:id', (req, res) => {
   const sql = "DELETE FROM posts WHERE id = ?";
-  db.run(sql, [req.params.id], function(err) {
-    if (err) return res.status(400).json({ error: err.message });
+  db.run(sql, req.params.id, function(err) {
+    if (err) {
+      res.status(400).json({ error: err.message });
+      return;
+    }
     res.json({ message: "deleted", changes: this.changes });
   });
 });
 
 // --- Catch-All Route (Must be last) ---
+// Handles React Client-Side Routing
 app.get('*', (req, res) => {
-  // If API request not found
   if (req.path.startsWith('/api')) {
     return res.status(404).json({ error: 'Not found' });
   }
-  // Otherwise serve React
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 

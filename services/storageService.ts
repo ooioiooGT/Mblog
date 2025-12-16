@@ -5,26 +5,27 @@ const getApiUrl = () => {
   try {
     const { protocol, hostname, port } = window.location;
 
-    // 1. Production: If serving from port 3001, the backend is serving the frontend.
-    // Use relative path to avoid CORS and hostname issues.
+    // 1. Production (Same Origin):
+    // If the frontend is loaded from port 3001, Node is serving it.
+    // We use a relative path.
     if (port === '3001') {
       return '/api';
     }
 
-    // 2. Sandbox/Preview/Blob environments:
-    // If the hostname is empty or protocol is blob/file (common in in-browser IDEs),
-    // we default to standard localhost:3001.
-    if (!hostname || protocol === 'blob:' || protocol === 'file:') {
-      return 'http://localhost:3001/api';
+    // 2. Development (Localhost):
+    // If on localhost but NOT port 3001 (e.g., Vite on 3000), point to 3001.
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+       return 'http://localhost:3001/api';
     }
 
-    // 3. Standard Development:
-    // Frontend is likely on port 3000 (or similar), Backend on 3001.
-    // We preserve the protocol (http/https) and hostname to support network access (e.g. 192.168.x.x).
-    return `${protocol}//${hostname}:3001/api`;
+    // 3. Network Development / Production with Proxy:
+    // If we are on a custom domain or IP (192.168.x.x), we generally assume 
+    // relative path if it's production behind Nginx, OR we might be developing on network.
+    // For safety in this specific "Host on Ubuntu" use case where Node serves static:
+    return '/api';
+    
   } catch (e) {
-    // Fallback safety
-    return 'http://localhost:3001/api';
+    return '/api';
   }
 };
 
@@ -43,20 +44,17 @@ const fileToBase64 = (file: File): Promise<string> => {
 export const storageService = {
   async getPosts(searchQuery: string = ''): Promise<BlogPost[]> {
     try {
-      // Build query URL
-      // Ensure API_URL doesn't end with slash if we append /posts, but logic above handles it (no trailing slash)
       const url = searchQuery 
         ? `${API_URL}/posts?q=${encodeURIComponent(searchQuery)}` 
         : `${API_URL}/posts`;
       
       const response = await fetch(url);
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Server Error: ${response.status} - ${errorText}`);
+        throw new Error(`Server Error: ${response.status}`);
       }
       return await response.json();
     } catch (error) {
-      console.error("Failed to fetch posts from API", error);
+      console.error("Failed to fetch posts", error);
       return [];
     }
   },
@@ -65,8 +63,7 @@ export const storageService = {
     try {
       const response = await fetch(`${API_URL}/posts/${id}`);
       if (!response.ok) return undefined;
-      const data = await response.json();
-      return data || undefined;
+      return await response.json();
     } catch (error) {
       console.error(`Failed to fetch post ${id}`, error);
       return undefined;
@@ -76,7 +73,6 @@ export const storageService = {
   async createPost(dto: CreatePostDTO): Promise<BlogPost> {
     let imageUrl = '';
     
-    // Process image client-side first
     if (dto.imageFile) {
       try {
         imageUrl = await fileToBase64(dto.imageFile);
@@ -87,7 +83,6 @@ export const storageService = {
         imageUrl = `https://picsum.photos/800/400?random=${Math.random()}`;
     }
 
-    // Prepare payload
     const postPayload = {
       title: dto.title,
       content: dto.content,
@@ -97,7 +92,6 @@ export const storageService = {
       author: 'Admin'
     };
 
-    // Send to backend
     const response = await fetch(`${API_URL}/posts`, {
       method: 'POST',
       headers: {
@@ -107,8 +101,7 @@ export const storageService = {
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to save post to server: ${response.status} - ${errorText}`);
+      throw new Error('Failed to save post to server');
     }
 
     return await response.json();
@@ -116,11 +109,13 @@ export const storageService = {
 
   async deletePost(id: string): Promise<void> {
     try {
-      await fetch(`${API_URL}/posts/${id}`, {
+      const response = await fetch(`${API_URL}/posts/${id}`, {
         method: 'DELETE',
       });
+      if (!response.ok) throw new Error('Failed to delete');
     } catch (error) {
       console.error("Failed to delete post", error);
+      throw error;
     }
   }
 };

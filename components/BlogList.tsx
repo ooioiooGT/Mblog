@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Calendar, User, ArrowRight } from 'lucide-react';
+import { Search, Calendar, User, ArrowRight, Trash2 } from 'lucide-react';
 import { BlogPost } from '../types';
 import { storageService } from '../services/storageService';
 import { Input } from './Input';
+import { useAuth } from '../contexts/AuthContext';
 
 export const BlogList: React.FC = () => {
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const { isAuthenticated } = useAuth();
 
   const fetchPosts = async (query: string) => {
     setLoading(true);
@@ -19,6 +21,19 @@ export const BlogList: React.FC = () => {
       console.error("Failed to fetch posts", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.preventDefault(); // Prevent navigation
+    if (!window.confirm("Are you sure you want to delete this post?")) return;
+
+    try {
+      await storageService.deletePost(id);
+      // Refresh list
+      fetchPosts(search);
+    } catch (error) {
+      alert("Failed to delete post");
     }
   };
 
@@ -63,7 +78,18 @@ export const BlogList: React.FC = () => {
       ) : posts.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {posts.map((post) => (
-            <Link key={post.id} to={`/post/${post.id}`} className="group flex flex-col bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden h-full">
+            <Link key={post.id} to={`/post/${post.id}`} className="group flex flex-col bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 overflow-hidden h-full relative">
+              
+              {isAuthenticated && (
+                <button 
+                  onClick={(e) => handleDelete(e, post.id)}
+                  className="absolute top-2 right-2 z-10 bg-white/90 p-2 rounded-full text-red-500 hover:text-red-700 hover:bg-white shadow-sm border border-gray-200 transition-all"
+                  title="Delete Post"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
+
               <div className="aspect-w-16 aspect-h-9 w-full h-48 bg-gray-200 relative overflow-hidden">
                 {post.imageUrl ? (
                   <img 
