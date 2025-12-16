@@ -1,19 +1,36 @@
 import { BlogPost, CreatePostDTO } from '../types';
 
-// Robust API URL Detection:
-// 1. Get the current protocol (http/https), hostname (localhost/ip), and port.
-// 2. If the current port is '3001', we are serving the app from the backend itself (Production/Ubuntu), so use relative path '/api'.
-// 3. Otherwise (Development), assume the backend is on port 3001 of the SAME hostname.
-// This allows access via localhost, 127.0.0.1, OR network IP (192.168.x.x) without code changes.
-const protocol = window.location.protocol;
-const hostname = window.location.hostname;
-const port = window.location.port;
+// Determine the API URL dynamically
+const getApiUrl = () => {
+  try {
+    const { protocol, hostname, port } = window.location;
 
-const API_URL = port === '3001' 
-  ? '/api' 
-  : `${protocol}//${hostname}:3001/api`;
+    // 1. Production: If serving from port 3001, the backend is serving the frontend.
+    // Use relative path to avoid CORS and hostname issues.
+    if (port === '3001') {
+      return '/api';
+    }
 
-// Helper to convert File to Base64
+    // 2. Sandbox/Preview/Blob environments:
+    // If the hostname is empty or protocol is blob/file (common in in-browser IDEs),
+    // we default to standard localhost:3001.
+    if (!hostname || protocol === 'blob:' || protocol === 'file:') {
+      return 'http://localhost:3001/api';
+    }
+
+    // 3. Standard Development:
+    // Frontend is likely on port 3000 (or similar), Backend on 3001.
+    // We preserve the protocol (http/https) and hostname to support network access (e.g. 192.168.x.x).
+    return `${protocol}//${hostname}:3001/api`;
+  } catch (e) {
+    // Fallback safety
+    return 'http://localhost:3001/api';
+  }
+};
+
+const API_URL = getApiUrl();
+
+// Helper to convert File to Base64 (still needed to send image data to server)
 const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -26,6 +43,8 @@ const fileToBase64 = (file: File): Promise<string> => {
 export const storageService = {
   async getPosts(searchQuery: string = ''): Promise<BlogPost[]> {
     try {
+      // Build query URL
+      // Ensure API_URL doesn't end with slash if we append /posts, but logic above handles it (no trailing slash)
       const url = searchQuery 
         ? `${API_URL}/posts?q=${encodeURIComponent(searchQuery)}` 
         : `${API_URL}/posts`;
@@ -57,6 +76,7 @@ export const storageService = {
   async createPost(dto: CreatePostDTO): Promise<BlogPost> {
     let imageUrl = '';
     
+    // Process image client-side first
     if (dto.imageFile) {
       try {
         imageUrl = await fileToBase64(dto.imageFile);
@@ -67,6 +87,7 @@ export const storageService = {
         imageUrl = `https://picsum.photos/800/400?random=${Math.random()}`;
     }
 
+    // Prepare payload
     const postPayload = {
       title: dto.title,
       content: dto.content,
@@ -76,6 +97,7 @@ export const storageService = {
       author: 'Admin'
     };
 
+    // Send to backend
     const response = await fetch(`${API_URL}/posts`, {
       method: 'POST',
       headers: {
@@ -86,7 +108,7 @@ export const storageService = {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Failed to save post: ${response.status} - ${errorText}`);
+      throw new Error(`Failed to save post to server: ${response.status} - ${errorText}`);
     }
 
     return await response.json();
