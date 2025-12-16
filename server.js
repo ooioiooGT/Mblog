@@ -1,8 +1,13 @@
-const express = import('express');
-const sqlite3 = import ('sqlite3').verbose();
-const cors = import('cors');
-const path = import('path');
-const { randomUUID } = import('crypto');
+import express from 'express';
+import sqlite3 from 'sqlite3';
+import cors from 'cors';
+import path from 'path';
+import { randomUUID } from 'crypto';
+import { fileURLToPath } from 'url';
+
+// Recreate __dirname which is not available in ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = 3001;
@@ -17,8 +22,11 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'dist')));
 
 // Database Setup
+// Initialize sqlite3 with verbose mode
+const sql = sqlite3.verbose();
 const dbPath = path.resolve(__dirname, 'blog.db');
-const db = new sqlite3.Database(dbPath, (err) => {
+
+const db = new sql.Database(dbPath, (err) => {
   if (err) {
     console.error('Error opening database', err);
   } else {
@@ -71,15 +79,15 @@ function initDb() {
 // Get all posts
 app.get('/api/posts', (req, res) => {
   const { q } = req.query;
-  let sql = "SELECT * FROM posts ORDER BY createdAt DESC";
+  let sqlQuery = "SELECT * FROM posts ORDER BY createdAt DESC";
   let params = [];
 
   if (q) {
-    sql = "SELECT * FROM posts WHERE title LIKE ? OR content LIKE ? ORDER BY createdAt DESC";
+    sqlQuery = "SELECT * FROM posts WHERE title LIKE ? OR content LIKE ? ORDER BY createdAt DESC";
     params = [`%${q}%`, `%${q}%`];
   }
 
-  db.all(sql, params, (err, rows) => {
+  db.all(sqlQuery, params, (err, rows) => {
     if (err) {
       console.error(err);
       res.status(400).json({ error: err.message });
@@ -91,8 +99,8 @@ app.get('/api/posts', (req, res) => {
 
 // Get single post
 app.get('/api/posts/:id', (req, res) => {
-  const sql = "SELECT * FROM posts WHERE id = ?";
-  db.get(sql, [req.params.id], (err, row) => {
+  const sqlQuery = "SELECT * FROM posts WHERE id = ?";
+  db.get(sqlQuery, [req.params.id], (err, row) => {
     if (err) {
       res.status(400).json({ error: err.message });
       return;
@@ -106,10 +114,10 @@ app.post('/api/posts', (req, res) => {
   const { title, content, excerpt, imageUrl, createdAt, author } = req.body;
   const id = randomUUID();
 
-  const sql = "INSERT INTO posts (id, title, content, excerpt, imageUrl, createdAt, author) VALUES (?,?,?,?,?,?,?)";
+  const sqlQuery = "INSERT INTO posts (id, title, content, excerpt, imageUrl, createdAt, author) VALUES (?,?,?,?,?,?,?)";
   const params = [id, title, content, excerpt, imageUrl, createdAt, author];
 
-  db.run(sql, params, function(err) {
+  db.run(sqlQuery, params, function(err) {
     if (err) {
       res.status(400).json({ error: err.message });
       return;
@@ -122,8 +130,8 @@ app.post('/api/posts', (req, res) => {
 
 // Delete post
 app.delete('/api/posts/:id', (req, res) => {
-  const sql = "DELETE FROM posts WHERE id = ?";
-  db.run(sql, req.params.id, function(err) {
+  const sqlQuery = "DELETE FROM posts WHERE id = ?";
+  db.run(sqlQuery, req.params.id, function(err) {
     if (err) {
       res.status(400).json({ error: err.message });
       return;
