@@ -1,10 +1,11 @@
 import React from 'react';
 import { Mail, Github, Linkedin, Briefcase, GraduationCap, MapPin, Phone, Code, CheckCircle2, Award, Zap, Globe } from 'lucide-react';
 import { Button } from './Button';
+import profilePic from '../src/IMG_7414.JPG';;
 
 // Assuming the image is in the same directory or project root as per instructions
 // Using a high-quality placeholder that matches your professional headshot for immediate visual impact
-const PROFILE_IMAGE = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?fit=crop&w=800&q=80";
+const PROFILE_IMAGE = profilePic;
 
 export const About: React.FC = () => {
   const skills = [
