@@ -4,6 +4,7 @@ import { Navbar } from './components/Navbar';
 import { BlogList } from './components/BlogList';
 import { BlogPost } from './components/BlogPost';
 import { AdminPanel } from './components/AdminPanel';
+import { About } from './components/About';
 import { Login } from './components/Login';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
@@ -18,6 +19,7 @@ function App() {
             <Routes>
               <Route path="/" element={<BlogList />} />
               <Route path="/post/:id" element={<BlogPost />} />
+              <Route path="/about" element={<About />} />
               <Route path="/login" element={<Login />} />
               <Route 
                 path="/admin" 
