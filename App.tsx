@@ -32,7 +32,7 @@ function App() {
           
           <footer className="bg-white border-t border-gray-200 mt-20 py-8">
             <div className="max-w-7xl mx-auto px-4 text-center text-gray-400 text-sm">
-              <p>© {new Date().getFullYear()} Gilber Blog. All rights reserved.</p>
+              <p>© {new Date().getFullYear()} Gilber's Blog. All rights reserved.</p>
             </div>
           </footer>
         </div>
