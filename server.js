@@ -5,24 +5,19 @@ import path from 'path';
 import { randomUUID } from 'crypto';
 import { fileURLToPath } from 'url';
 
-// Recreate __dirname which is not available in ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = 3001;
 
-// Middleware
 app.use(cors());
-// Increase payload limit for Base64 images
+// Ensure the server can handle the Base64 image data
 app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// 1. Serve Static Files (Frontend)
-// This expects your React build to be in the 'dist' folder
 app.use(express.static(path.join(__dirname, 'dist')));
 
-// Database Setup
-// Initialize sqlite3 with verbose mode
 const sql = sqlite3.verbose();
 const dbPath = path.resolve(__dirname, 'blog.db');
 
@@ -47,7 +42,6 @@ function initDb() {
       author TEXT
     )`);
 
-    // Seed data if empty
     db.get("SELECT count(*) as count FROM posts", (err, row) => {
       if (err) return console.error(err);
       if (row.count === 0) {
@@ -56,7 +50,7 @@ function initDb() {
           {
             id: '1',
             title: 'Welcome to the Future of Blogging',
-            content: 'This is a simulated full-stack environment. We are using SQLite for the database and Node.js for the backend. React 19 powers the frontend.',
+            content: 'This is a simulated full-stack environment. SQLite for database, Node.js for backend, React 19 for frontend.',
             excerpt: 'This is a simulated full-stack environment...',
             createdAt: Date.now(),
             author: 'Admin',
@@ -74,9 +68,6 @@ function initDb() {
   });
 }
 
-// --- API Routes ---
-
-// Get all posts
 app.get('/api/posts', (req, res) => {
   const { q } = req.query;
   let sqlQuery = "SELECT * FROM posts ORDER BY createdAt DESC";
@@ -89,7 +80,6 @@ app.get('/api/posts', (req, res) => {
 
   db.all(sqlQuery, params, (err, rows) => {
     if (err) {
-      console.error(err);
       res.status(400).json({ error: err.message });
       return;
     }
@@ -97,10 +87,8 @@ app.get('/api/posts', (req, res) => {
   });
 });
 
-// Get single post
 app.get('/api/posts/:id', (req, res) => {
-  const sqlQuery = "SELECT * FROM posts WHERE id = ?";
-  db.get(sqlQuery, [req.params.id], (err, row) => {
+  db.get("SELECT * FROM posts WHERE id = ?", [req.params.id], (err, row) => {
     if (err) {
       res.status(400).json({ error: err.message });
       return;
@@ -109,7 +97,6 @@ app.get('/api/posts/:id', (req, res) => {
   });
 });
 
-// Create post
 app.post('/api/posts', (req, res) => {
   const { title, content, excerpt, imageUrl, createdAt, author } = req.body;
   const id = randomUUID();
@@ -122,17 +109,12 @@ app.post('/api/posts', (req, res) => {
       res.status(400).json({ error: err.message });
       return;
     }
-    res.json({
-      id, title, content, excerpt, imageUrl, createdAt, author
-    });
+    res.json({ id, title, content, excerpt, imageUrl, createdAt, author });
   });
 });
 
-// Delete post
 app.delete('/api/posts/:id', (req, res) => {
-  const sqlQuery = "DELETE FROM posts WHERE id = ?";
-  // Wrap params in array for safety
-  db.run(sqlQuery, [req.params.id], function(err) {
+  db.run("DELETE FROM posts WHERE id = ?", [req.params.id], function(err) {
     if (err) {
       res.status(400).json({ error: err.message });
       return;
@@ -141,13 +123,8 @@ app.delete('/api/posts/:id', (req, res) => {
   });
 });
 
-// --- Catch-All Route (Must be last) ---
-// Handles React Client-Side Routing
-// Using Regex /.*/ because Express 5+ does not support '*' as a wildcard string
 app.get(/.*/, (req, res) => {
-  if (req.path.startsWith('/api')) {
-    return res.status(404).json({ error: 'Not found' });
-  }
+  if (req.path.startsWith('/api')) return res.status(404).json({ error: 'Not found' });
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
